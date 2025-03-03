@@ -1,0 +1,13 @@
+name: "AI Code reviewer"
+author: "David Pilat"
+description: "AI-powered code reviewer"
+inputs:
+  GITHUB_TOKEN: # GitHub Authentication Token
+    description: "GitHub Authentication Token"
+    required: true
+  OPENAI_API_KEY: # OpenAI API Token
+    description: "OpenAI API Key"
+    required: true
+run:
+  using: "node20"
+  main: "dist/index.js"
