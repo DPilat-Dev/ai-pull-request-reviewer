@@ -1,37 +1,35 @@
 import * as core from "@actions/core";
 import { PRHandler } from "./handlers/PRHandler";
 import { GitHubService } from "./services/GitHubService";
+import { AIService } from "./services/AIService";
+import * as fs from "fs";
 
-const githubService = new GitHubService();
+(async () => {
+  try {
+    core.info("🚀 Starting AI PR Review bot...");
 
-const prHandler = new PRHandler(githubService);
+    const eventName = process.env.GITHUB_EVENT_NAME;
+    const eventPath = process.env.GITHUB_EVENT_PATH;
 
-const eventData = {
-    eventName: process.env.GITHUB_EVENT_NAME,
-    payload: require(process.env.GITHUB_EVENT_PATH ?? '')
-};
+    if (!eventPath) throw new Error("GITHUB_EVENT_PATH is not defined.");
 
-(async ()=> {
-    try {
-        core.info("🚀 Starting event processing...\n");
-        core.info(`🔹 Event Name: ${eventData.eventName}`);
-        core.info(`📦 Event Payload: ${eventData.payload}`);
+    const eventPayload = JSON.parse(fs.readFileSync(eventPath, "utf8"));
+    core.info(`🔹 Event Name: ${eventName}`);
 
-        if (eventData.eventName === 'pull_request') {
-            // call a PR Handler
-            core.info("🔍 Processing Pull Request...");
-            prHandler.handlePullRequest(eventData.payload);
-        }
-        else if (eventData.eventName === 'issue_comment') {
-            // call a PR issue comment handler
-            core.info("💬 Processing Issue Comment...");
-        }
-        else {
-            core.warning(`⚠️ Event "${eventData.eventName}" is not handled.`);
-        }
-
-        core.info("✅ Event processing completed successfully.");
-    } catch (error) {
-        core.setFailed(`❌ Error durring event processing: ${error}`);
+    if (eventName !== "pull_request") {
+      core.warning(`⚠️ Unsupported event type: ${eventName}`);
+      return;
     }
+
+    const token = core.getInput("github_token");
+    const githubService = new GitHubService(eventPayload, token);
+    const aiService = new AIService();
+    const prHandler = new PRHandler(githubService, aiService);
+
+    await prHandler.handlePullRequest(eventPayload);
+
+    core.info("✅ PR handling completed.");
+  } catch (error) {
+    core.setFailed(`❌ AI PR Review failed: ${error}`);
+  }
 })();
